@@ -110,9 +110,9 @@ public class Main implements ActionListener, WindowListener {
 	public Main() {
 		initialize();
 		Toolkit kit = Toolkit.getDefaultToolkit();
-		URL url = mAdbviewerFrame.getClass().getResource("./res/ic_app.png");
+		URL url = getClass().getClassLoader().getResource("res/ic_app.png");
 		mAdbviewerFrame.setIconImage(url == null ? kit
-				.getImage("./res/ic_app.png") : kit.createImage(url));
+				.getImage("res/ic_app.png") : kit.createImage(url));
 		// 5秒ごとに実行
 		mScheduler = Executors.newSingleThreadScheduledExecutor();
 		mScheduler.scheduleWithFixedDelay(new Runnable() {
