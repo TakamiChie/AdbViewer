@@ -12,6 +12,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -38,14 +40,13 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.border.BevelBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-public class Main implements ActionListener {
+public class Main implements ActionListener, WindowListener {
 
 	/**
 	 * IDごとに処理を行う際に呼び出されるコールバックリスナ
@@ -70,14 +71,21 @@ public class Main implements ActionListener {
 	private static final String ACTION_ABOUT = "about";
 	private static final long AUTOUPDATE_TIMER = 5000;
 	private static final String ACTION_CONNECTDEVICE = "connectdevice";
-	private static final String PREFKEY_RECENTIPS = "recentIP";
 	private static final String PROPFILE_PATH = "AdbViewer.properties";
 	private static final Object APPLICATION_VER = "1.0";
 	private static final Object SUPPORTED_ADB_VER = "1.0.29";
+	private static final String PROPKEY_RECENTIPS = "recentIP";
+	private static final String PROPKEY_WINDOW_BOUNDS = "windowBounds";
+	private static final String PROPKEY_AUTOUPDATE = "autoUpdate";
+	private static final String PROPKEY_ALWAYSONTOP = "alwaysOnTop";
+	private static final String PROPSET_NOVALUE = "no";
+	private static final String PROPSET_YESVALUE = "yes";
+	private static final String DEFAULT_BOUNDS = "100,100,300,100";
 	private JFrame mAdbviewerFrame;
 	private ScheduledExecutorService mScheduler;
 	private JList<String> mDisplayDevices;
-	private boolean isAutoUpdate;
+	private boolean mIsAutoUpdate;
+	private boolean mIsAlwaysOnTop;
 	private JLabel mDisplayStatus;
 
 	/**
@@ -103,12 +111,13 @@ public class Main implements ActionListener {
 		initialize();
 		Toolkit kit = Toolkit.getDefaultToolkit();
 		URL url = mAdbviewerFrame.getClass().getResource("./res/ic_app.png");
-		mAdbviewerFrame.setIconImage(url == null ? kit.getImage("./res/ic_app.png") : kit.createImage(url));
+		mAdbviewerFrame.setIconImage(url == null ? kit
+				.getImage("./res/ic_app.png") : kit.createImage(url));
 		// 5秒ごとに実行
 		mScheduler = Executors.newSingleThreadScheduledExecutor();
 		mScheduler.scheduleWithFixedDelay(new Runnable() {
 			public void run() {
-				if (isAutoUpdate) {
+				if (mIsAutoUpdate) {
 					updateDeviceList();
 				}
 			}
@@ -125,14 +134,24 @@ public class Main implements ActionListener {
 				| IllegalAccessException | UnsupportedLookAndFeelException e) {
 			e.printStackTrace();
 		}
+		Properties prop = new Properties();
+		try (InputStream stream = new FileInputStream(PROPFILE_PATH)) {
+			prop.loadFromXML(stream);
+		} catch (IOException ex) {
+			// ignore this
+		}
+		String[] bounds = prop.getProperty(PROPKEY_WINDOW_BOUNDS, DEFAULT_BOUNDS).split(",");
 
 		mAdbviewerFrame = new JFrame();
 		mAdbviewerFrame.setTitle("AdbViewer");
 		mAdbviewerFrame.setType(Type.POPUP);
 		mAdbviewerFrame
 				.setModalExclusionType(ModalExclusionType.APPLICATION_EXCLUDE);
-		mAdbviewerFrame.setBounds(100, 100, 288, 161);
-		mAdbviewerFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		if(bounds.length == 4 && Integer.parseInt(bounds[0]) > 0 && Integer.parseInt(bounds[1]) > 0 && Integer.parseInt(bounds[2]) > 0 && Integer.parseInt(bounds[3]) > 0){
+			mAdbviewerFrame.setBounds(Integer.parseInt(bounds[0]), Integer.parseInt(bounds[1]), Integer.parseInt(bounds[2]), Integer.parseInt(bounds[3]));
+		}
+		mAdbviewerFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		mAdbviewerFrame.addWindowListener(this);
 
 		mDisplayDevices = new JList<String>();
 		mDisplayDevices.setBorder(new BevelBorder(BevelBorder.LOWERED, null,
@@ -141,9 +160,6 @@ public class Main implements ActionListener {
 		mDisplayDevices.setForeground(Color.WHITE);
 		mAdbviewerFrame.getContentPane().add(mDisplayDevices,
 				BorderLayout.CENTER);
-
-		JToolBar toolBar = new JToolBar();
-		mAdbviewerFrame.getContentPane().add(toolBar, BorderLayout.NORTH);
 
 		mDisplayStatus = new JLabel("");
 		mAdbviewerFrame.getContentPane()
@@ -162,7 +178,9 @@ public class Main implements ActionListener {
 		menuitemEnabledAutoCheck.setMnemonic('A');
 		menuitemEnabledAutoCheck.addActionListener(this);
 		menuitemEnabledAutoCheck.setSelected(true);
-		isAutoUpdate = menuitemEnabledAutoCheck.isSelected();
+		menuitemEnabledAutoCheck.setSelected(prop.getProperty(PROPKEY_AUTOUPDATE,
+				PROPSET_YESVALUE).equals(PROPSET_YESVALUE));
+		operate_enableAutoCheck(menuitemEnabledAutoCheck);
 		menuFiles.add(menuitemEnabledAutoCheck);
 
 		JCheckBoxMenuItem menuitemEnableTopmost = new JCheckBoxMenuItem(
@@ -172,6 +190,9 @@ public class Main implements ActionListener {
 		menuitemEnableTopmost.setMnemonic('T');
 		menuitemEnableTopmost.setActionCommand(ACTION_ENABLETOPMOST);
 		menuitemEnableTopmost.addActionListener(this);
+		menuitemEnableTopmost.setSelected(prop.getProperty(PROPKEY_ALWAYSONTOP,
+				PROPSET_NOVALUE).equals(PROPSET_YESVALUE));
+		operate_enableTopMost(menuitemEnableTopmost);
 		menuFiles.add(menuitemEnableTopmost);
 
 		JMenuItem menuitemConnectDevice = new JMenuItem("LAN内端末の接続(C)");
@@ -235,6 +256,63 @@ public class Main implements ActionListener {
 		menuAbout.add(menuitemAboutApp);
 	}
 
+	/** オーバーライドメソッド **/
+
+	@Override
+	public void windowOpened(WindowEvent e) {
+
+	}
+
+	@Override
+	public void windowClosing(WindowEvent e) {
+
+	}
+
+	@Override
+	public void windowClosed(WindowEvent e) {
+		Properties prop = new Properties();
+		try (InputStream stream = new FileInputStream(PROPFILE_PATH)) {
+			prop.loadFromXML(stream);
+		} catch (IOException ex) {
+			// ignore this
+		}
+
+		prop.setProperty(PROPKEY_WINDOW_BOUNDS, String.format("%d,%d,%d,%d",
+				mAdbviewerFrame.getX(), mAdbviewerFrame.getY(),
+				mAdbviewerFrame.getWidth(), mAdbviewerFrame.getHeight()));
+		prop.setProperty(PROPKEY_AUTOUPDATE, mIsAutoUpdate ? PROPSET_YESVALUE
+				: PROPSET_NOVALUE);
+		prop.setProperty(PROPKEY_ALWAYSONTOP, mIsAlwaysOnTop ? PROPSET_YESVALUE
+				: PROPSET_NOVALUE);
+		try (OutputStream out = new FileOutputStream(PROPFILE_PATH)) {
+			prop.storeToXML(out, null);
+			out.flush();
+		} catch (IOException ex) {
+			showStandardErrorDialog(ex);
+			ex.printStackTrace();
+		}
+	}
+
+	@Override
+	public void windowIconified(WindowEvent e) {
+
+	}
+
+	@Override
+	public void windowDeiconified(WindowEvent e) {
+
+	}
+
+	@Override
+	public void windowActivated(WindowEvent e) {
+
+	}
+
+	@Override
+	public void windowDeactivated(WindowEvent e) {
+
+	}
+
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		try {
@@ -285,7 +363,7 @@ public class Main implements ActionListener {
 	 *            メニューアイテム
 	 */
 	private void operate_enableAutoCheck(JCheckBoxMenuItem source) {
-		isAutoUpdate = source.isSelected();
+		mIsAutoUpdate = source.isSelected();
 	}
 
 	/**
@@ -296,6 +374,7 @@ public class Main implements ActionListener {
 	 */
 	private void operate_enableTopMost(JCheckBoxMenuItem source) {
 		mAdbviewerFrame.setAlwaysOnTop(source.isSelected());
+		mIsAlwaysOnTop = source.isSelected();
 	}
 
 	private void operate_connectdevice() throws IOException {
@@ -305,7 +384,7 @@ public class Main implements ActionListener {
 		} catch (IOException e) {
 			// ignore this
 		}
-		String ips = prop.getProperty(PREFKEY_RECENTIPS, "");
+		String ips = prop.getProperty(PROPKEY_RECENTIPS, "");
 		ArrayList<String> recents = new ArrayList<>(Arrays.asList(ips
 				.split(",")));
 		recents.remove("");
@@ -342,7 +421,7 @@ public class Main implements ActionListener {
 					prefips.append(s);
 					prefips.append(",");
 				}
-				prop.setProperty(PREFKEY_RECENTIPS,
+				prop.setProperty(PROPKEY_RECENTIPS,
 						prefips.substring(0, prefips.length() - 1));
 				try (OutputStream out = new FileOutputStream(PROPFILE_PATH)) {
 					prop.storeToXML(out, null);
