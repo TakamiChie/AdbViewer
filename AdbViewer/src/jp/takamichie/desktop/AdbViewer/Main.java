@@ -69,6 +69,7 @@ public class Main implements ActionListener, WindowListener {
 	private static final String ACTION_INSTALLAPK = "installapk";
 	private static final String ACTION_SHOWSHELLPROMPT = "shellprompt";
 	private static final String ACTION_SHOWLOGCAT = "logcat";
+	private static final String ACTION_DISCONNECT = "disconnect";
 	private static final String ACTION_ABOUT = "about";
 	private static final long AUTOUPDATE_TIMER = 5000;
 	private static final String ACTION_CONNECTDEVICE = "connectdevice";
@@ -141,15 +142,21 @@ public class Main implements ActionListener, WindowListener {
 		} catch (IOException ex) {
 			// ignore this
 		}
-		String[] bounds = prop.getProperty(PROPKEY_WINDOW_BOUNDS, DEFAULT_BOUNDS).split(",");
+		String[] bounds = prop.getProperty(PROPKEY_WINDOW_BOUNDS,
+				DEFAULT_BOUNDS).split(",");
 
 		mAdbviewerFrame = new JFrame();
 		mAdbviewerFrame.setTitle("AdbViewer");
 		mAdbviewerFrame.setType(Type.POPUP);
 		mAdbviewerFrame
 				.setModalExclusionType(ModalExclusionType.APPLICATION_EXCLUDE);
-		if(bounds.length == 4 && Integer.parseInt(bounds[0]) > 0 && Integer.parseInt(bounds[1]) > 0 && Integer.parseInt(bounds[2]) > 0 && Integer.parseInt(bounds[3]) > 0){
-			mAdbviewerFrame.setBounds(Integer.parseInt(bounds[0]), Integer.parseInt(bounds[1]), Integer.parseInt(bounds[2]), Integer.parseInt(bounds[3]));
+		if (bounds.length == 4 && Integer.parseInt(bounds[0]) > 0
+				&& Integer.parseInt(bounds[1]) > 0
+				&& Integer.parseInt(bounds[2]) > 0
+				&& Integer.parseInt(bounds[3]) > 0) {
+			mAdbviewerFrame.setBounds(Integer.parseInt(bounds[0]),
+					Integer.parseInt(bounds[1]), Integer.parseInt(bounds[2]),
+					Integer.parseInt(bounds[3]));
 		}
 		mAdbviewerFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		mAdbviewerFrame.addWindowListener(this);
@@ -174,7 +181,8 @@ public class Main implements ActionListener, WindowListener {
 		menuBar.add(menuFiles);
 
 		JMenuItem menuitemUpdateNow = new JMenuItem("直ちに更新(U)");
-		menuitemUpdateNow.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
+		menuitemUpdateNow.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F5,
+				0));
 		menuitemUpdateNow.setActionCommand(ACTION_UPDATENOW);
 		menuitemUpdateNow.setMnemonic('U');
 		menuitemUpdateNow.addActionListener(this);
@@ -224,6 +232,12 @@ public class Main implements ActionListener, WindowListener {
 		menuitemIDCopy.addActionListener(this);
 		menuDevices.add(menuitemIDCopy);
 
+		JMenuItem menuitemDisconnectDevice = new JMenuItem("接続解除(disconnect)");
+		menuitemDisconnectDevice.setMnemonic('D');
+		menuitemDisconnectDevice.setActionCommand(ACTION_DISCONNECT);
+		menuitemDisconnectDevice.addActionListener(this);
+		menuDevices.add(menuitemDisconnectDevice);
+
 		JMenuItem menuitemInstallApk = new JMenuItem("APKインストール");
 		menuitemInstallApk.setMnemonic('A');
 		menuitemInstallApk.setActionCommand(ACTION_INSTALLAPK);
@@ -257,8 +271,8 @@ public class Main implements ActionListener, WindowListener {
 		menuAbout.add(menuitemAboutApp);
 
 		// 設定値の反映
-		menuitemEnabledAutoCheck.setSelected(prop.getProperty(PROPKEY_AUTOUPDATE,
-				PROPSET_YESVALUE).equals(PROPSET_YESVALUE));
+		menuitemEnabledAutoCheck.setSelected(prop.getProperty(
+				PROPKEY_AUTOUPDATE, PROPSET_YESVALUE).equals(PROPSET_YESVALUE));
 		operate_enableAutoCheck(menuitemEnabledAutoCheck);
 		menuitemEnableTopmost.setSelected(prop.getProperty(PROPKEY_ALWAYSONTOP,
 				PROPSET_NOVALUE).equals(PROPSET_YESVALUE));
@@ -341,6 +355,9 @@ public class Main implements ActionListener, WindowListener {
 			case ACTION_EXITAPP:
 				System.exit(0);
 				break;
+			case ACTION_DISCONNECT:
+				operate_disconnect();
+				break;
 			case ACTION_IDCOPY:
 				operate_idcopy();
 				break;
@@ -395,6 +412,11 @@ public class Main implements ActionListener, WindowListener {
 		mIsAlwaysOnTop = source.isSelected();
 	}
 
+	/**
+	 * デバイス接続メニューのイベントハンドラです
+	 *
+	 * @throws IOException
+	 */
 	private void operate_connectdevice() throws IOException {
 		Properties prop = new Properties();
 		try (InputStream stream = new FileInputStream(PROPFILE_PATH)) {
@@ -452,6 +474,30 @@ public class Main implements ActionListener, WindowListener {
 				showStandardErrorDialog(ret);
 			}
 		}
+	}
+
+	/**
+	 * デバイスの接続解除メニューのイベントハンドラです
+	 */
+	private void operate_disconnect() {
+		execSelectedDevices(new IDCallback() {
+			@Override
+			public void callback(String id) {
+				try {
+					String ret = ProcessExecuter.execute("adb", "disconnect",
+							id);
+					if("".equals(ret)){
+						mDisplayStatus.setText("デバイスの接続を解除しました");
+					}else{
+						mDisplayStatus.setText("デバイスの接続を解除できませんでした");
+						showStandardErrorDialog(ret);
+					}
+				} catch (IOException e) {
+					showStandardErrorDialog(e);
+					e.printStackTrace();
+				}
+			}
+		});
 	}
 
 	/**
