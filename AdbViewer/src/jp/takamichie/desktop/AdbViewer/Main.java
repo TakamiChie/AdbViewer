@@ -61,6 +61,7 @@ public class Main implements ActionListener, WindowListener {
 		void callback(String id);
 	}
 
+	private static final String ACTION_UPDATENOW = "update";
 	private static final String ACTION_ENABLEDAUTOCHECK = "autocheck";
 	private static final String ACTION_ENABLETOPMOST = "topmost";
 	private static final String ACTION_EXITAPP = "exitapp";
@@ -172,15 +173,18 @@ public class Main implements ActionListener, WindowListener {
 		menuFiles.setMnemonic('F');
 		menuBar.add(menuFiles);
 
+		JMenuItem menuitemUpdateNow = new JMenuItem("直ちに更新(U)");
+		menuitemUpdateNow.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
+		menuitemUpdateNow.setActionCommand(ACTION_UPDATENOW);
+		menuitemUpdateNow.setMnemonic('U');
+		menuitemUpdateNow.addActionListener(this);
+		menuFiles.add(menuitemUpdateNow);
+
 		JCheckBoxMenuItem menuitemEnabledAutoCheck = new JCheckBoxMenuItem(
 				"自動更新(A)");
 		menuitemEnabledAutoCheck.setActionCommand(ACTION_ENABLEDAUTOCHECK);
 		menuitemEnabledAutoCheck.setMnemonic('A');
 		menuitemEnabledAutoCheck.addActionListener(this);
-		menuitemEnabledAutoCheck.setSelected(true);
-		menuitemEnabledAutoCheck.setSelected(prop.getProperty(PROPKEY_AUTOUPDATE,
-				PROPSET_YESVALUE).equals(PROPSET_YESVALUE));
-		operate_enableAutoCheck(menuitemEnabledAutoCheck);
 		menuFiles.add(menuitemEnabledAutoCheck);
 
 		JCheckBoxMenuItem menuitemEnableTopmost = new JCheckBoxMenuItem(
@@ -190,9 +194,6 @@ public class Main implements ActionListener, WindowListener {
 		menuitemEnableTopmost.setMnemonic('T');
 		menuitemEnableTopmost.setActionCommand(ACTION_ENABLETOPMOST);
 		menuitemEnableTopmost.addActionListener(this);
-		menuitemEnableTopmost.setSelected(prop.getProperty(PROPKEY_ALWAYSONTOP,
-				PROPSET_NOVALUE).equals(PROPSET_YESVALUE));
-		operate_enableTopMost(menuitemEnableTopmost);
 		menuFiles.add(menuitemEnableTopmost);
 
 		JMenuItem menuitemConnectDevice = new JMenuItem("LAN内端末の接続(C)");
@@ -254,6 +255,14 @@ public class Main implements ActionListener, WindowListener {
 		menuitemAboutApp.setActionCommand(ACTION_ABOUT);
 		menuitemAboutApp.addActionListener(this);
 		menuAbout.add(menuitemAboutApp);
+
+		// 設定値の反映
+		menuitemEnabledAutoCheck.setSelected(prop.getProperty(PROPKEY_AUTOUPDATE,
+				PROPSET_YESVALUE).equals(PROPSET_YESVALUE));
+		operate_enableAutoCheck(menuitemEnabledAutoCheck);
+		menuitemEnableTopmost.setSelected(prop.getProperty(PROPKEY_ALWAYSONTOP,
+				PROPSET_NOVALUE).equals(PROPSET_YESVALUE));
+		operate_enableTopMost(menuitemEnableTopmost);
 	}
 
 	/** オーバーライドメソッド **/
@@ -317,8 +326,10 @@ public class Main implements ActionListener, WindowListener {
 	public void actionPerformed(ActionEvent e) {
 		try {
 			switch (e.getActionCommand()) {
+			case ACTION_UPDATENOW:
+				operate_updateNow();
+				break;
 			case ACTION_ENABLEDAUTOCHECK:
-				// do nothing
 				operate_enableAutoCheck((JCheckBoxMenuItem) e.getSource());
 				break;
 			case ACTION_ENABLETOPMOST:
@@ -355,6 +366,13 @@ public class Main implements ActionListener, WindowListener {
 	}
 
 	/** イベントハンドラ **/
+
+	/**
+	 * 直ちに更新メニューのイベントハンドラです
+	 */
+	private void operate_updateNow() {
+		updateDeviceList();
+	}
 
 	/**
 	 * 自動更新メニューのイベントハンドラです。
