@@ -150,10 +150,10 @@ public class Main implements ActionListener, WindowListener {
 		mAdbviewerFrame.setType(Type.POPUP);
 		mAdbviewerFrame
 				.setModalExclusionType(ModalExclusionType.APPLICATION_EXCLUDE);
-		if (bounds.length == 4 && Integer.parseInt(bounds[0]) > 0
-				&& Integer.parseInt(bounds[1]) > 0
-				&& Integer.parseInt(bounds[2]) > 0
-				&& Integer.parseInt(bounds[3]) > 0) {
+		if (bounds.length == 4 && Integer.parseInt(bounds[0]) >= 0
+				&& Integer.parseInt(bounds[1]) >= 0
+				&& Integer.parseInt(bounds[2]) >= 0
+				&& Integer.parseInt(bounds[3]) >= 0) {
 			mAdbviewerFrame.setBounds(Integer.parseInt(bounds[0]),
 					Integer.parseInt(bounds[1]), Integer.parseInt(bounds[2]),
 					Integer.parseInt(bounds[3]));
